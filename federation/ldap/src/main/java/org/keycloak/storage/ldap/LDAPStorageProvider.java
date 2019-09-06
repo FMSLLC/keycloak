@@ -17,6 +17,7 @@
 
 package org.keycloak.storage.ldap;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,12 +25,15 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.naming.AuthenticationException;
+import javax.security.auth.kerberos.KerberosTicket;
 
 import org.jboss.logging.Logger;
 import org.keycloak.common.constants.KerberosConstants;
+import org.keycloak.common.util.Base64;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialAuthentication;
 import org.keycloak.credential.CredentialInput;
@@ -581,7 +585,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
         if (kerberosConfig.isAllowKerberosAuthentication() && kerberosConfig.isUseKerberosForPasswordAuthentication()) {
             // Use Kerberos JAAS (Krb5LoginModule)
             KerberosUsernamePasswordAuthenticator authenticator = factory.createKerberosUsernamePasswordAuthenticator(kerberosConfig);
-            return authenticator.validUser(user.getUsername(), password);
+            return authenticator.validUser(user.getUsername(), password, session);
         } else {
             // Use Naming LDAP API
             LDAPObject ldapUser = loadAndValidateUser(realm, user);
@@ -605,8 +609,7 @@ public class LDAPStorageProvider implements UserStorageProvider,
         }
     }
 
-
-    @Override
+	@Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
         if (!CredentialModel.PASSWORD.equals(input.getType()) || ! (input instanceof PasswordUserCredentialModel)) return false;
         if (editMode == UserStorageProvider.EditMode.READ_ONLY) {

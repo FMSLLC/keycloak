@@ -19,6 +19,7 @@ package org.keycloak.federation.kerberos;
 
 import org.jboss.logging.Logger;
 import org.keycloak.common.constants.KerberosConstants;
+import org.keycloak.common.util.Base64;
 import org.keycloak.credential.CredentialAuthentication;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialInputUpdater;
@@ -40,10 +41,14 @@ import org.keycloak.storage.UserStorageProviderModel;
 import org.keycloak.storage.user.ImportedUserValidation;
 import org.keycloak.storage.user.UserLookupProvider;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+
+import javax.security.auth.kerberos.KerberosTicket;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -177,13 +182,13 @@ public class KerberosFederationProvider implements UserStorageProvider,
     protected boolean validPassword(String username, String password) {
         if (kerberosConfig.isAllowPasswordAuthentication()) {
             KerberosUsernamePasswordAuthenticator authenticator = factory.createKerberosUsernamePasswordAuthenticator(kerberosConfig);
-            return authenticator.validUser(username, password);
+            return authenticator.validUser(username, password, session);
         } else {
             return false;
         }
     }
 
-    @Override
+	@Override
     public CredentialValidationOutput authenticate(RealmModel realm, CredentialInput input) {
         if (!(input instanceof UserCredentialModel)) return null;
         UserCredentialModel credential = (UserCredentialModel)input;
