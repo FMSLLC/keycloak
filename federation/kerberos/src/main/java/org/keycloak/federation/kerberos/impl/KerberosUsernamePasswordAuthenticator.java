@@ -131,8 +131,10 @@ public class KerberosUsernamePasswordAuthenticator {
 
         loginContext.login();
         logger.debug("Principal " + principal + " authenticated succesfully");
-        saveKerberosTicketAsUserSessionNote(session);
-        return loginContext.getSubject();
+        if (session != null) {
+			saveKerberosTicketAsUserSessionNote(session);
+		}
+		return loginContext.getSubject();
     }
 
     public void saveKerberosTicketAsUserSessionNote(KeycloakSession session) {

@@ -90,7 +90,7 @@ public class KeycloakSPNegoSchemeFactory extends SPNegoSchemeFactory {
             };
 
             try {
-                Subject clientSubject = authenticator.authenticateSubject(username, password);
+                Subject clientSubject = authenticator.authenticateSubject(username, password, null);
 
                 ByteArrayHolder holder = Subject.doAs(clientSubject, new ClientAcceptSecContext(input, oid, authServer));
 
