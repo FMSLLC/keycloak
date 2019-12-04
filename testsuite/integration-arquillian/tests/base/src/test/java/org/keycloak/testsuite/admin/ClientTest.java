@@ -66,7 +66,7 @@ public class ClientTest extends AbstractAdminTest {
 
     @Test
     public void getClients() {
-        Assert.assertNames(realm.clients().findAll(), "account", "realm-management", "security-admin-console", "broker", Constants.ADMIN_CLI_CLIENT_ID);
+        Assert.assertNames(realm.clients().findAll(), "account", "account-console", "realm-management", "security-admin-console", "broker", Constants.ADMIN_CLI_CLIENT_ID);
     }
 
     private ClientRepresentation createClient() {
@@ -93,7 +93,7 @@ public class ClientTest extends AbstractAdminTest {
         String id = createClient().getId();
 
         assertNotNull(realm.clients().get(id));
-        Assert.assertNames(realm.clients().findAll(), "account", "realm-management", "security-admin-console", "broker", "my-app", Constants.ADMIN_CLI_CLIENT_ID);
+        Assert.assertNames(realm.clients().findAll(), "account", "account-console", "realm-management", "security-admin-console", "broker", "my-app", Constants.ADMIN_CLI_CLIENT_ID);
     }
 
     @Test
@@ -231,6 +231,8 @@ public class ClientTest extends AbstractAdminTest {
         response.close();
         UserRepresentation userRep = realm.clients().get(id).getServiceAccountUser();
         assertEquals("service-account-serviceclient", userRep.getUsername());
+        // KEYCLOAK-11197 service accounts are no longer created with a placeholder e-mail.
+        assertNull(userRep.getEmail());
     }
 
     // KEYCLOAK-3421

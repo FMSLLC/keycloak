@@ -63,6 +63,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.keycloak.common.Profile;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.theme.Theme;
 
 /**
@@ -397,6 +398,17 @@ public class AccountRestService {
                                   final ConsentRepresentation consent) {
         return upsert(clientId, consent);
     }
+    
+    @Path("/totp/remove")
+    @DELETE
+    public Response removeTOTP() {
+        auth.require(AccountRoles.MANAGE_ACCOUNT);
+        
+        session.userCredentialManager().disableCredentialType(realm, user, CredentialModel.OTP);
+        event.event(EventType.REMOVE_TOTP).client(auth.getClient()).user(auth.getUser()).success();
+        
+        return Cors.add(request, Response.accepted()).build();
+    }
 
     /**
      * Creates or updates the consent of the given, requested consent for
@@ -462,6 +474,11 @@ public class AccountRestService {
             }
         }
         return consent;
+    }
+    
+    @Path("/linked-accounts")
+    public LinkedAccountsResource linkedAccounts() {
+        return new LinkedAccountsResource(session, request, client, auth, event, user);
     }
 
     // TODO Logs

@@ -1,9 +1,12 @@
 package org.keycloak.testsuite.broker;
 
+import org.keycloak.testsuite.arquillian.annotation.EnableVault;
+
 /**
  * @author Martin Kanis <mkanis@redhat.com>
  */
-public class KcOidcBrokerVaultTest extends KcOidcBrokerTest {
+@EnableVault
+public class KcOidcBrokerVaultTest extends AbstractBrokerTest {
 
     @Override
     protected BrokerConfiguration getBrokerConfiguration() {

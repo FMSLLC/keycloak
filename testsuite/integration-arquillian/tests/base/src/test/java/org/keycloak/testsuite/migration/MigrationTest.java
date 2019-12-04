@@ -72,6 +72,8 @@ public class MigrationTest extends AbstractMigrationTest {
         testMigrationTo5_x();
         testMigrationTo6_x();
         testMigrationTo7_x(true);
+        testMigrationTo8_x();
+        testMigrationTo9_x();
     }
 
     @Test
@@ -82,6 +84,8 @@ public class MigrationTest extends AbstractMigrationTest {
         testMigrationTo5_x();
         testMigrationTo6_x();
         testMigrationTo7_x(true);
+        testMigrationTo8_x();
+        testMigrationTo9_x();
     }
 
     @Test
@@ -93,6 +97,8 @@ public class MigrationTest extends AbstractMigrationTest {
         testMigrationTo5_x();
         testMigrationTo6_x();
         testMigrationTo7_x(true);
+        testMigrationTo8_x();
+        testMigrationTo9_x();
     }
 
     @Test
@@ -105,6 +111,8 @@ public class MigrationTest extends AbstractMigrationTest {
         testMigrationTo5_x();
         testMigrationTo6_x();
         testMigrationTo7_x(false);
+        testMigrationTo8_x();
+        testMigrationTo9_x();
     }
 
 }

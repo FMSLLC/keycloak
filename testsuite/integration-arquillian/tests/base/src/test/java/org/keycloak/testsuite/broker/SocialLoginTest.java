@@ -230,14 +230,17 @@ public class SocialLoginTest extends AbstractKeycloakTest {
     }
 
     @Test
+    @UncaughtServerErrorExpected
     public void openshiftLogin() {
         setTestProvider(OPENSHIFT);
         performLogin();
         assertUpdateProfile(false, false, true);
         assertAccount();
+        testTokenExchange();
     }
 
     @Test
+    @UncaughtServerErrorExpected
     public void openshift4Login() {
         setTestProvider(OPENSHIFT4);
         performLogin();
@@ -371,7 +374,7 @@ public class SocialLoginTest extends AbstractKeycloakTest {
         assertAccount();
     }
 
-    private IdentityProviderRepresentation buildIdp(Provider provider) {
+    public IdentityProviderRepresentation buildIdp(Provider provider) {
         IdentityProviderRepresentation idp = IdentityProviderBuilder.create().alias(provider.id()).providerId(provider.id()).build();
         idp.setEnabled(true);
         idp.setStoreToken(true);
