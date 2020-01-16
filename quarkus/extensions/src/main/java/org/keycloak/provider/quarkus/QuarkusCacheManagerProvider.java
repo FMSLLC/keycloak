@@ -44,7 +44,11 @@ public final class QuarkusCacheManagerProvider implements ManagedCacheManagerPro
         try {
             InputStream configurationStream = loadConfiguration(config);
             ConfigurationBuilderHolder builder = new ParserRegistry().parse(configurationStream);
-            configureTransportStack(config, builder);
+
+            if (builder.getNamedConfigurationBuilders().get("sessions").clustering().cacheMode().isClustered()) {
+                configureTransportStack(config, builder);
+            }
+
             return (C) new DefaultCacheManager(builder, true);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -73,7 +77,7 @@ public final class QuarkusCacheManagerProvider implements ManagedCacheManagerPro
     }
 
     private InputStream loadDefaultConfiguration(Config.Scope config) throws FileNotFoundException {
-        if (config.getBoolean("clustered")) {
+        if (config.getBoolean("clustered", false)) {
             log.debugf("Using default clustered cache configuration.");
             return FileLookupFactory.newInstance()
                     .lookupFileStrict("default-clustered-cache.xml", Thread.currentThread().getContextClassLoader());    

@@ -555,6 +555,7 @@ public class ModelToRepresentation {
         rep.setName(clientModel.getName());
         rep.setDescription(clientModel.getDescription());
         rep.setEnabled(clientModel.isEnabled());
+        rep.setAlwaysDisplayInConsole(clientModel.isAlwaysDisplayInConsole());
         rep.setAdminUrl(clientModel.getManagementUrl());
         rep.setPublicClient(clientModel.isPublicClient());
         rep.setFrontchannelLogout(clientModel.isFrontchannelLogout());
@@ -816,6 +817,10 @@ public class ModelToRepresentation {
     }
 
     public static <R extends AbstractPolicyRepresentation> R toRepresentation(Policy policy, AuthorizationProvider authorization, boolean genericRepresentation, boolean export) {
+        return toRepresentation(policy, authorization, genericRepresentation, export, false);
+    }
+    
+    public static <R extends AbstractPolicyRepresentation> R toRepresentation(Policy policy, AuthorizationProvider authorization, boolean genericRepresentation, boolean export, boolean allFields) {
         PolicyProviderFactory providerFactory = authorization.getProviderFactory(policy.getType());
         R representation;
 
@@ -839,6 +844,13 @@ public class ModelToRepresentation {
         representation.setType(policy.getType());
         representation.setDecisionStrategy(policy.getDecisionStrategy());
         representation.setLogic(policy.getLogic());
+        
+        if (allFields) {
+            representation.setResourcesData(policy.getResources().stream().map(
+                    resource -> toRepresentation(resource, resource.getResourceServer(), authorization, true)).collect(Collectors.toSet()));
+            representation.setScopesData(policy.getScopes().stream().map(
+                    resource -> toRepresentation(resource)).collect(Collectors.toSet()));
+        }
 
         return representation;
     }

@@ -22,7 +22,10 @@
     },
 
     "eventsStore": {
-        "provider": "${keycloak.eventsStore.provider:jpa}"
+        "provider": "${keycloak.eventsStore.provider:jpa}",
+        "jpa": {
+            "max-detail-length": "${keycloak.eventsStore.maxDetailLength:1000}"
+        }
     },
 
     "eventsListener": {
@@ -195,7 +198,7 @@
     "vault": {
         "files-plaintext": {
             "dir": "target/dependency/vault",
-            "enabled": "${keycloak.vault.plaintext.provider.enabled:false}"
+            "enabled": "${keycloak.vault.files-plaintext.provider.enabled:false}"
         }
     }
 }

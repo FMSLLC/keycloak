@@ -23,7 +23,6 @@ import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAu
 import org.keycloak.authentication.authenticators.client.ClientAuthUtil;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Time;
-import org.keycloak.credential.CredentialModel;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
@@ -281,7 +280,6 @@ public class AuthenticationProcessor {
         List<AuthenticationExecutionModel> currentExecutions;
         FormMessage errorMessage;
         FormMessage successMessage;
-        String selectedCredentialId;
         List<AuthenticationSelectionOption> authenticationSelections;
 
         private Result(AuthenticationExecutionModel execution, Authenticator authenticator, List<AuthenticationExecutionModel> currentExecutions) {
@@ -398,16 +396,6 @@ public class AuthenticationProcessor {
         @Override
         public void setUser(UserModel user) {
             setAutheticatedUser(user);
-        }
-
-        @Override
-        public String getSelectedCredentialId() {
-            return selectedCredentialId;
-        }
-
-        @Override
-        public void setSelectedCredentialId(String selectedCredentialId) {
-            this.selectedCredentialId = selectedCredentialId;
         }
 
         @Override
@@ -684,6 +672,18 @@ public class AuthenticationProcessor {
         AuthenticationSessionModel.ExecutionStatus status = authenticationSession.getExecutionStatus().get(model.getId());
         if (status == null) return false;
         return status == AuthenticationSessionModel.ExecutionStatus.SUCCESS;
+    }
+
+    public boolean isEvaluatedTrue(AuthenticationExecutionModel model) {
+        AuthenticationSessionModel.ExecutionStatus status = authenticationSession.getExecutionStatus().get(model.getId());
+        if (status == null) return false;
+        return status == AuthenticationSessionModel.ExecutionStatus.EVALUATED_TRUE;
+    }
+
+    public boolean isEvaluatedFalse(AuthenticationExecutionModel model) {
+        AuthenticationSessionModel.ExecutionStatus status = authenticationSession.getExecutionStatus().get(model.getId());
+        if (status == null) return false;
+        return status == AuthenticationSessionModel.ExecutionStatus.EVALUATED_FALSE;
     }
 
     public Response handleBrowserExceptionList(AuthenticationFlowException e) {

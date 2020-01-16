@@ -1,7 +1,5 @@
 package org.keycloak.testsuite.model;
 
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Assert;
 import org.junit.Test;
 import org.keycloak.common.Version;
@@ -11,18 +9,15 @@ import org.keycloak.migration.MigrationModel;
 import org.keycloak.models.jpa.entities.MigrationModelEntity;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.testsuite.AbstractKeycloakTest;
-import org.keycloak.testsuite.runonserver.RunOnServerDeployment;
-import org.keycloak.testsuite.runonserver.RunOnServerTest;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude;
 
 import javax.persistence.EntityManager;
 import java.util.List;
 
-public class MigrationModelTest extends AbstractKeycloakTest {
+import static org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer.REMOTE;
 
-    @Deployment
-    public static WebArchive deploy() {
-        return RunOnServerDeployment.create(MigrationModelTest.class);
-    }
+@AuthServerContainerExclude(REMOTE)
+public class MigrationModelTest extends AbstractKeycloakTest {
 
     @Override
     public void addTestRealms(List<RealmRepresentation> testRealms) {

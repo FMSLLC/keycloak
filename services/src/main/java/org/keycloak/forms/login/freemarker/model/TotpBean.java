@@ -16,7 +16,6 @@
  */
 package org.keycloak.forms.login.freemarker.model;
 
-import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.OTPPolicy;
 import org.keycloak.models.RealmModel;
@@ -28,6 +27,8 @@ import org.keycloak.utils.TotpUtils;
 import javax.ws.rs.core.UriBuilder;
 
 /**
+ * Used for UpdateTotp required action
+ *
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
  */
 public class TotpBean {

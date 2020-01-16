@@ -301,7 +301,10 @@ public class TokenEndpoint {
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code is expired", Response.Status.BAD_REQUEST);
         }
 
-        UserSessionModel userSession = clientSession.getUserSession();
+        UserSessionModel userSession = null;
+        if (clientSession != null) {
+            userSession = clientSession.getUserSession();
+        }
 
         if (userSession == null) {
             event.error(Errors.USER_SESSION_NOT_FOUND);
@@ -385,7 +388,7 @@ public class TokenEndpoint {
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_SCOPE, "Client no longer has requested consent from user", Response.Status.BAD_REQUEST);
         }
 
-        ClientSessionContext clientSessionCtx = DefaultClientSessionContext.fromClientSessionAndClientScopes(clientSession, clientScopes);
+        ClientSessionContext clientSessionCtx = DefaultClientSessionContext.fromClientSessionAndClientScopes(clientSession, clientScopes, session);
 
         // Set nonce as an attribute in the ClientSessionContext. Will be used for the token generation
         clientSessionCtx.setAttribute(OIDCLoginProtocol.NONCE_PARAM, codeData.getNonce());
@@ -1203,7 +1206,7 @@ public class TokenEndpoint {
             return false;
         }
         Matcher m = VALID_CODE_VERIFIER_PATTERN.matcher(codeVerifier);
-        return m.matches() ? true : false;
+        return m.matches();
     }
 
     // https://tools.ietf.org/html/rfc7636#section-4.6

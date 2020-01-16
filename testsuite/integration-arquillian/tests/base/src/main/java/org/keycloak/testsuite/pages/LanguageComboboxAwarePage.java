@@ -26,6 +26,8 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 
 /**
+ * Provides some generic utils available on most of login pages (Language combobox, Link "Try another way" etc)
+ *
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  */
 public abstract class LanguageComboboxAwarePage extends AbstractPage {
@@ -36,8 +38,8 @@ public abstract class LanguageComboboxAwarePage extends AbstractPage {
     @FindBy(id = "kc-locale-dropdown")
     private WebElement localeDropdown;
 
-    @FindBy(id = "kc-back")
-    private WebElement backButton;
+    @FindBy(id = "try-another-way")
+    private WebElement tryAnotherWayLink;
 
     public String getLanguageDropdownText() {
         return languageText.getText();
@@ -50,19 +52,17 @@ public abstract class LanguageComboboxAwarePage extends AbstractPage {
         WaitUtils.waitForPageToLoad();
     }
 
-
-    // If false, we don't expect form "Back" button available on the page. If true, we expect that it is available on the page
-    public void assertBackButtonAvailability(boolean expectedAvailability) {
+    // If false, we don't expect form "Try another way" link available on the page. If true, we expect that it is available on the page
+    public void assertTryAnotherWayLinkAvailability(boolean expectedAvailability) {
         try {
-            driver.findElement(By.id("kc-back"));
+            driver.findElement(By.id("try-another-way"));
             Assert.assertTrue(expectedAvailability);
         } catch (NoSuchElementException nse) {
             Assert.assertFalse(expectedAvailability);
         }
     }
 
-
-    public void clickBackButton() {
-        backButton.click();
+    public void clickTryAnotherWayLink() {
+        tryAnotherWayLink.click();
     }
 }

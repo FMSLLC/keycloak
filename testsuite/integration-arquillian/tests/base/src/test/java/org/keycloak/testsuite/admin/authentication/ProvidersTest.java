@@ -32,7 +32,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer;
 
 import static org.hamcrest.Matchers.is;
 
@@ -55,6 +56,7 @@ public class ProvidersTest extends AbstractAuthenticationTest {
     }
 
     @Test
+    @AuthServerContainerExclude(AuthServer.REMOTE)
     public void testFormActionProviders() {
         List<Map<String, Object>> result = authMgmtResource.getFormActionProviders();
 
@@ -74,6 +76,7 @@ public class ProvidersTest extends AbstractAuthenticationTest {
     }
 
     @Test
+    @AuthServerContainerExclude(AuthServer.REMOTE)
     public void testClientAuthenticatorProviders() {
         List<Map<String, Object>> result = authMgmtResource.getClientAuthenticatorProviders();
 
@@ -205,6 +208,10 @@ public class ProvidersTest extends AbstractAuthenticationTest {
                 "Flow is executed only if user has the given role.");
         addProviderInfo(result, "conditional-user-configured", "Condition - user configured",
                 "Executes the current flow only if authenticators are configured");
+        addProviderInfo(result, "conditional-user-attribute", "Condition - user attribute",
+                "Flow is executed only if the user attribute exists and has the expected value");
+        addProviderInfo(result, "set-attribute", "Set user attribute",
+                "Set a user attribute");
 
         return result;
     }

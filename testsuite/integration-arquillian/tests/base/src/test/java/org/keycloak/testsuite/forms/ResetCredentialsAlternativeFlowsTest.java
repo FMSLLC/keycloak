@@ -18,23 +18,12 @@
 
 package org.keycloak.testsuite.forms;
 
-import java.util.Arrays;
-import java.util.List;
-
-import javax.mail.internet.MimeMessage;
-
-import org.jboss.arquillian.container.test.api.Deployment;
-import org.jboss.arquillian.container.test.api.TargetsContainer;
 import org.jboss.arquillian.graphene.page.Page;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.keycloak.OAuth2Constants;
-import org.keycloak.admin.client.resource.UserResource;
-import org.keycloak.models.AuthenticationFlowModel;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
 import org.keycloak.models.utils.TimeBasedOTP;
 import org.keycloak.representations.idm.AuthenticationFlowRepresentation;
@@ -43,7 +32,7 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.testsuite.AbstractTestRealmKeycloakTest;
 import org.keycloak.testsuite.admin.ApiUtil;
 import org.keycloak.testsuite.admin.authentication.AbstractAuthenticationTest;
-import org.keycloak.testsuite.model.ClientModelTest;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude;
 import org.keycloak.testsuite.pages.AccountTotpPage;
 import org.keycloak.testsuite.pages.AppPage;
 import org.keycloak.testsuite.pages.ErrorPage;
@@ -54,16 +43,18 @@ import org.keycloak.testsuite.pages.LoginPasswordUpdatePage;
 import org.keycloak.testsuite.pages.LoginTotpPage;
 import org.keycloak.testsuite.pages.LoginUsernameOnlyPage;
 import org.keycloak.testsuite.pages.PasswordPage;
-import org.keycloak.testsuite.runonserver.RunOnServer;
-import org.keycloak.testsuite.runonserver.RunOnServerDeployment;
 import org.keycloak.testsuite.util.FlowUtil;
 import org.keycloak.testsuite.util.GreenMailRule;
 import org.keycloak.testsuite.util.MailUtils;
 import org.keycloak.testsuite.util.URLUtils;
 import org.keycloak.testsuite.util.UserBuilder;
 
+import javax.mail.internet.MimeMessage;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
-import static org.keycloak.testsuite.arquillian.DeploymentTargetModifier.AUTH_SERVER_CURRENT;
+import static org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer.REMOTE;
 
 /**
  * Test for the various alternatives of reset-credentials flow or browser flow (non-default setup of the  flows)
@@ -71,17 +62,8 @@ import static org.keycloak.testsuite.arquillian.DeploymentTargetModifier.AUTH_SE
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
  * @author <a href="mailto:jlieskov@redhat.com">Jan Lieskovsky</a>
  */
+@AuthServerContainerExclude(REMOTE)
 public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycloakTest {
-
-    @Deployment
-    @TargetsContainer(AUTH_SERVER_CURRENT)
-    public static WebArchive deploy() {
-        return RunOnServerDeployment.create(UserResource.class, ClientModelTest.class)
-                .addPackages(true,
-                        "org.keycloak.testsuite",
-                        "org.keycloak.testsuite.model");
-    }
-
 
     private String userId;
 
@@ -140,39 +122,12 @@ public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycl
 
     // Test with default reset-credentials flow and alternative browser flow with separate username and password screen.
     //
-    // Click "Forget password" on browser flow passwordPAge and assert that button "Back" is not available as we switched to
-    // different flow (reset-credentials" flow).
-    @Test
-    public void testBackButtonWhenSwitchToResetCredentialsFlowFromAlternativeBrowserFlow() {
-        try {
-            BrowserFlowTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
-
-            // Provide username and then click "Forget password"
-            provideUsernameAndClickResetPassword("login-test");
-
-            // Click "back to login" link. Should be on password page of the browser flow (under URL "authenticate")
-            resetPasswordPage.backToLogin();
-            passwordPage.assertCurrent();
-            Assert.assertTrue(URLUtils.currentUrlMatches("/login-actions/authenticate"));
-            passwordPage.assertBackButtonAvailability(true);
-
-            // Click "back". Should be on usernameForm
-            passwordPage.clickBackButton();
-            loginUsernameOnlyPage.assertCurrent();
-        } finally {
-            revertFlows();
-        }
-    }
-
-
-    // Test with default reset-credentials flow and alternative browser flow with separate username and password screen.
-    //
     // Provide username and click "Forget password" on browser flow. Then provide non-existing username in reset-credentials 1st screen.
     // User should be cleared from authentication context and no email should be sent
     @Test
     public void testNotExistingUserProvidedInResetCredentialsFlow() {
         try {
-            BrowserFlowTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
+            MultiFactorAuthenticationTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
 
             // Provide username and then click "Forget password"
             provideUsernameAndClickResetPassword("login-test");
@@ -199,7 +154,7 @@ public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycl
     @Test
     public void testDifferentUserProvidedInResetCredentialsFlow() {
         try {
-            BrowserFlowTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
+            MultiFactorAuthenticationTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
 
             // Provide username and then click "Forget password"
             provideUsernameAndClickResetPassword("login-test");
@@ -225,7 +180,7 @@ public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycl
     @Test
     public void testSameUserProvidedInResetCredentialsFlow() {
         try {
-            BrowserFlowTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
+            MultiFactorAuthenticationTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
 
             // Provide username and then click "Forget password"
             provideUsernameAndClickResetPassword("login-test");
@@ -252,7 +207,7 @@ public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycl
     @Test
     public void testResetCredentialsFlowWithUsernameProvidedFromBrowserFlow() throws Exception {
         try {
-            BrowserFlowTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
+            MultiFactorAuthenticationTest.configureBrowserFlowWithAlternativeCredentials(testingClient);
             final String newFlowAlias = "resetcred - alternative";
             // Configure reset-credentials flow without ResetCredentialsChooseUser authenticator
             configureResetCredentialsRemoveExecutionsAndBindTheFlow(
@@ -308,7 +263,6 @@ public class ResetCredentialsAlternativeFlowsTest extends AbstractTestRealmKeycl
         // Assert switched to the "reset-credentials" flow, but button "back" not available
         resetPasswordPage.assertCurrent();
         Assert.assertTrue(URLUtils.currentUrlMatches("/login-actions/reset-credentials"));
-        resetPasswordPage.assertBackButtonAvailability(false);
     }
 
 

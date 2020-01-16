@@ -18,14 +18,14 @@
 package org.keycloak.testsuite.admin;
 
 import org.hamcrest.Matchers;
-import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.drone.api.annotation.Drone;
 import org.jboss.arquillian.graphene.page.Page;
 import org.jboss.arquillian.test.api.ArquillianResource;
-import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.keycloak.admin.client.resource.GroupResource;
+import org.keycloak.admin.client.resource.GroupsResource;
 import org.keycloak.admin.client.resource.IdentityProviderResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.RoleMappingResource;
@@ -37,7 +37,6 @@ import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.Constants;
 import org.keycloak.models.PasswordPolicy;
-import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.utils.ModelToRepresentation;
@@ -46,6 +45,7 @@ import org.keycloak.representations.idm.ComponentRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.ErrorRepresentation;
 import org.keycloak.representations.idm.FederatedIdentityRepresentation;
+import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.IdentityProviderRepresentation;
 import org.keycloak.representations.idm.MappingsRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
@@ -54,8 +54,6 @@ import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.storage.UserStorageProvider;
-import org.keycloak.testsuite.AbstractTestRealmKeycloakTest;
-import org.keycloak.testsuite.federation.DummyUserFederationProvider;
 import org.keycloak.testsuite.federation.DummyUserFederationProviderFactory;
 import org.keycloak.testsuite.page.LoginPasswordUpdatePage;
 import org.keycloak.testsuite.pages.ErrorPage;
@@ -63,10 +61,12 @@ import org.keycloak.testsuite.pages.InfoPage;
 import org.keycloak.testsuite.pages.LoginPage;
 import org.keycloak.testsuite.pages.PageUtils;
 import org.keycloak.testsuite.pages.ProceedPage;
-import org.keycloak.testsuite.runonserver.RunOnServerDeployment;
+import org.keycloak.testsuite.runonserver.RunHelpers;
+import org.keycloak.testsuite.updaters.Creator;
 import org.keycloak.testsuite.util.AdminEventPaths;
 import org.keycloak.testsuite.util.ClientBuilder;
 import org.keycloak.testsuite.util.GreenMailRule;
+import org.keycloak.testsuite.util.GroupBuilder;
 import org.keycloak.testsuite.util.MailUtils;
 import org.keycloak.testsuite.util.OAuthClient;
 import org.keycloak.testsuite.util.RealmBuilder;
@@ -76,7 +76,6 @@ import org.keycloak.util.JsonSerialization;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotFoundException;
@@ -86,13 +85,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -100,6 +103,10 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.keycloak.testsuite.Assert.assertNames;
+import static org.keycloak.testsuite.admin.AbstractAdminTest.loadJson;
+import org.keycloak.testsuite.updaters.Creator;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude;
+import org.keycloak.testsuite.arquillian.annotation.AuthServerContainerExclude.AuthServer;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -129,15 +136,6 @@ public class UserTest extends AbstractAdminTest {
 
     @Page
     protected LoginPage loginPage;
-
-    @Deployment
-    public static WebArchive deploy() {
-        return RunOnServerDeployment.create(
-                AbstractAdminTest.class,
-                AbstractTestRealmKeycloakTest.class,
-                DummyUserFederationProviderFactory.class, DummyUserFederationProvider.class,
-                UserResource.class);
-    }
 
     public String createUser() {
         return createUser("user1", "user1@localhost");
@@ -212,6 +210,7 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
+    @AuthServerContainerExclude(AuthServer.REMOTE)
     public void createUserWithHashedCredentials() {
         UserRepresentation user = new UserRepresentation();
         user.setUsername("user_creds");
@@ -327,6 +326,7 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
+    @AuthServerContainerExclude(AuthServer.REMOTE)
     public void createUserWithRawCredentials() {
         UserRepresentation user = new UserRepresentation();
         user.setUsername("user_rawpw");
@@ -349,13 +349,7 @@ public class UserTest extends AbstractAdminTest {
     }
 
     private CredentialModel fetchCredentials(String username) {
-        return getTestingClient().server(REALM_NAME).fetch(session -> {
-            RealmModel realm = session.getContext().getRealm();
-            UserModel user = session.users().getUserByUsername(username, realm);
-            List<CredentialModel> storedCredentialsByType = session.userCredentialManager().getStoredCredentialsByType(realm, user, CredentialRepresentation.PASSWORD);
-            System.out.println(storedCredentialsByType.size());
-            return storedCredentialsByType.get(0);
-        }, CredentialModel.class);
+        return getTestingClient().server(REALM_NAME).fetch(RunHelpers.fetchCredentials(username));
     }
 
     @Test
@@ -450,6 +444,51 @@ public class UserTest extends AbstractAdminTest {
         UserRepresentation createdUser = realm.users().get(userId).toRepresentation();
         assertNotNull(createdUser);
         assertEquals(user.getFederationLink(), createdUser.getFederationLink());
+    }
+
+    @Test
+    public void createUserWithoutUsername() {
+        UserRepresentation user = new UserRepresentation();
+        user.setEmail("user1@localhost");
+        Response response = realm.users().create(user);
+        assertEquals(400, response.getStatus());
+        ErrorRepresentation error = response.readEntity(ErrorRepresentation.class);
+        Assert.assertEquals("User name is missing", error.getErrorMessage());
+        response.close();
+    }
+
+    @Test
+    public void createUserWithEmptyUsername() {
+        UserRepresentation user = new UserRepresentation();
+        user.setUsername("");
+        user.setEmail("user2@localhost");
+        Response response = realm.users().create(user);
+        assertEquals(400, response.getStatus());
+        ErrorRepresentation error = response.readEntity(ErrorRepresentation.class);
+        Assert.assertEquals("User name is missing", error.getErrorMessage());
+        response.close();
+    }
+
+    @Test
+    public void createUserWithInvalidPolicyPassword() {
+        RealmRepresentation rep = realm.toRepresentation();
+        String passwordPolicy = rep.getPasswordPolicy();
+        rep.setPasswordPolicy("length(8)");
+        realm.update(rep);
+        UserRepresentation user = new UserRepresentation();
+        user.setUsername("user4");
+        user.setEmail("user4@localhost");
+        CredentialRepresentation rawPassword = new CredentialRepresentation();
+        rawPassword.setValue("ABCD");
+        rawPassword.setType(CredentialRepresentation.PASSWORD);
+        user.setCredentials(Arrays.asList(rawPassword));
+        Response response = realm.users().create(user);
+        assertEquals(400, response.getStatus());
+        ErrorRepresentation error = response.readEntity(ErrorRepresentation.class);
+        Assert.assertEquals("Password policy not met", error.getErrorMessage());
+        rep.setPasswordPolicy(passwordPolicy);
+        realm.update(rep);
+        response.close();
     }
 
     private List<String> createUsers() {
@@ -732,6 +771,19 @@ public class UserTest extends AbstractAdminTest {
         assertNull(user1.getAttributes());
     }
 
+    @Test
+    public void testImportUserWithNullAttribute() {
+        RealmRepresentation rep = loadJson(getClass().getResourceAsStream("/import/testrealm-user-null-attr.json"), RealmRepresentation.class);
+
+        try (Creator<RealmResource> c = Creator.create(adminClient, rep)) {
+            List<UserRepresentation> users = c.resource().users().list();
+            // there should be only one user
+            assertThat(users, hasSize(1));
+            // test there are only 2 attributes imported from json file, attribute "key3" : [ null ] shoudn't be imported
+            assertThat(users.get(0).getAttributes().size(), equalTo(2));
+        }
+    }
+
     private void assertAttributeValue(String expectedValue, List<String> attrValues) {
         assertEquals(1, attrValues.size());
         assertEquals(expectedValue, attrValues.get(0));
@@ -784,7 +836,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccess() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccess() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -831,7 +884,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccessTwoLinks() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccessTwoLinks() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -874,7 +928,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccessTwoLinksReverse() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccessTwoLinksReverse() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -919,7 +974,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccessLinkOpenDoesNotExpireWhenOpenedOnly() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccessLinkOpenDoesNotExpireWhenOpenedOnly() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -962,7 +1018,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccessTokenShortLifespan() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccessTokenShortLifespan() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -1004,7 +1061,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailSuccessWithRecycledAuthSession() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailSuccessWithRecycledAuthSession() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
         userRep.setUsername("user1");
@@ -1068,7 +1126,8 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
-    public void sendResetPasswordEmailWithRedirect() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendResetPasswordEmailWithRedirect() throws IOException {
 
         UserRepresentation userRep = new UserRepresentation();
         userRep.setEnabled(true);
@@ -1137,7 +1196,8 @@ public class UserTest extends AbstractAdminTest {
 
 
     @Test
-    public void sendVerifyEmail() throws IOException, MessagingException {
+    @AuthServerContainerExclude(AuthServer.REMOTE)
+    public void sendVerifyEmail() throws IOException {
         UserRepresentation userRep = new UserRepresentation();
         userRep.setUsername("user1");
 
@@ -1315,6 +1375,7 @@ public class UserTest extends AbstractAdminTest {
     }
 
     @Test
+    @AuthServerContainerExclude(AuthServer.REMOTE)
     public void updateUserWithRawCredentials() {
         UserRepresentation user = new UserRepresentation();
         user.setUsername("user_rawpw");
@@ -1674,5 +1735,34 @@ public class UserTest extends AbstractAdminTest {
         credPasswd.setValue("password");
         user.resetPassword(credPasswd);
         Assert.assertEquals(1, user.credentials().size());
+    }
+    
+    @Test
+    public void testGetGroupsForUserFullRepresentation() {
+       
+        RealmResource realm = adminClient.realms().realm("test");
+        
+        String userName = "averagejoe";
+        String groupName = "groupWithAttribute";
+        Map<String, List<String>> attributes = new HashMap<String, List<String>>();
+        attributes.put("attribute1", Arrays.asList("attribute1","attribute2"));
+
+        UserRepresentation userRepresentation = UserBuilder
+                .edit(createUserRepresentation(userName, "joe@average.com", "average", "joe", true))
+                .addPassword("password")
+                .build();
+        
+        try (Creator<UserResource> u = Creator.create(realm, userRepresentation);
+             Creator<GroupResource> g = Creator.create(realm, GroupBuilder.create().name(groupName).attributes(attributes).build())) {
+            
+            String groupId = g.id();
+            UserResource user = u.resource();
+            user.joinGroup(groupId);
+            
+            List<GroupRepresentation> userGroups = user.groups(0, 100, false);
+            
+            assertFalse(userGroups.isEmpty());
+            assertTrue(userGroups.get(0).getAttributes().containsKey("attribute1"));
+        }
     }
 }

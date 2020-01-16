@@ -86,7 +86,7 @@ public class WebAuthnRegister implements RequiredActionProvider, CredentialRegis
     @Override
     public void requiredActionChallenge(RequiredActionContext context) {
         UserModel userModel = context.getUser();
-        String userid = userModel.getId();
+        String userid = Base64Url.encode(userModel.getId().getBytes());
         String username = userModel.getUsername();
         Challenge challenge = new DefaultChallenge();
         String challengeValue = Base64Url.encode(challenge.getValue());
@@ -165,7 +165,7 @@ public class WebAuthnRegister implements RequiredActionProvider, CredentialRegis
         Challenge challenge = new DefaultChallenge(context.getAuthenticationSession().getAuthNote(WebAuthnConstants.AUTH_CHALLENGE_NOTE));
         ServerProperty serverProperty = new ServerProperty(origin, rpId, challenge, null);
         // check User Verification by considering a malicious user might modify the result of calling WebAuthn API
-        boolean isUserVerificationRequired = policy.getUserVerificationRequirement().equals(WebAuthnConstants.OPTION_REQUIRED) == true ? true : false;
+        boolean isUserVerificationRequired = policy.getUserVerificationRequirement().equals(WebAuthnConstants.OPTION_REQUIRED);
 
         try {
             WebAuthnRegistrationContext registrationContext = new WebAuthnRegistrationContext(clientDataJSON, attestationObject, serverProperty, isUserVerificationRequired);
