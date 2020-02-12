@@ -169,16 +169,16 @@ public class KerberosFederationProvider implements UserStorageProvider,
     public boolean isValid(RealmModel realm, UserModel user, CredentialInput input) {
         if (!(input instanceof UserCredentialModel)) return false;
         if (input.getType().equals(PasswordCredentialModel.TYPE) && !session.userCredentialManager().isConfiguredLocally(realm, user, PasswordCredentialModel.TYPE)) {
-            return validPassword(user.getUsername(), input.getChallengeResponse());
+            return validPassword(user.getUsername(), input.getChallengeResponse(), session);
         } else {
             return false; // invalid cred type
         }
     }
 
-    protected boolean validPassword(String username, String password) {
+    protected boolean validPassword(String username, String password, KeycloakSession session) {
         if (kerberosConfig.isAllowPasswordAuthentication()) {
             KerberosUsernamePasswordAuthenticator authenticator = factory.createKerberosUsernamePasswordAuthenticator(kerberosConfig);
-            return authenticator.validUser(username, password);
+            return authenticator.validUser(username, password, session);
         } else {
             return false;
         }

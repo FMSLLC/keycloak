@@ -18,8 +18,11 @@
 package org.keycloak.federation.kerberos.impl;
 
 import org.jboss.logging.Logger;
+import org.keycloak.common.constants.KerberosConstants;
+import org.keycloak.common.util.Base64;
 import org.keycloak.common.util.KerberosJdkProvider;
 import org.keycloak.federation.kerberos.CommonKerberosConfig;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ModelException;
 
 import javax.security.auth.Subject;
@@ -28,10 +31,12 @@ import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.NameCallback;
 import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.auth.kerberos.KerberosTicket;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
@@ -85,9 +90,9 @@ public class KerberosUsernamePasswordAuthenticator {
      * @param password kerberos password
      * @return  true if user was successfully authenticated
      */
-    public boolean validUser(String username, String password) {
+    public boolean validUser(String username, String password, KeycloakSession session) {
         try {
-            authenticateSubject(username, password);
+            authenticateSubject(username, password, session);
             logoutSubject();
             return true;
         } catch (LoginException le) {
@@ -117,7 +122,7 @@ public class KerberosUsernamePasswordAuthenticator {
      * @param password kerberos password
      * @return  true if user was successfully authenticated
      */
-    public Subject authenticateSubject(String username, String password) throws LoginException {
+    public Subject authenticateSubject(String username, String password, KeycloakSession session) throws LoginException {
         String principal = getKerberosPrincipal(username);
 
         logger.debug("Validating password of principal: " + principal);
@@ -127,8 +132,25 @@ public class KerberosUsernamePasswordAuthenticator {
 
         loginContext.login();
         logger.debug("Principal " + principal + " authenticated succesfully");
+        saveKerberosTicketAsUserSessionNote(session);
         return loginContext.getSubject();
     }
+
+    private void saveKerberosTicketAsUserSessionNote(KeycloakSession session) {
+    	Optional<KerberosTicket> kerberosTicket = loginContext.getSubject().getPrivateCredentials(KerberosTicket.class).stream().findFirst();
+		if (kerberosTicket.isPresent()) {
+			try {
+				session.getContext().getAuthenticationSession().setUserSessionNote(
+						KerberosConstants.GSS_DELEGATION_CREDENTIAL, Base64.encodeObject(kerberosTicket.get()));
+			} catch (IOException e) {
+				logger.error("Should not happen", e);
+				e.printStackTrace();
+			}
+		} else {
+			logger.debug("Kerberos Ticket not found.  User Session Note not created");
+		}
+	}
+
 
 
     public void logoutSubject() {
