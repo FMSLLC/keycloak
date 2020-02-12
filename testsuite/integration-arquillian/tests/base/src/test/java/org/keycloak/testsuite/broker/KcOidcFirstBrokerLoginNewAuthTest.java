@@ -12,6 +12,7 @@ import org.keycloak.testsuite.admin.ApiUtil;
 import org.keycloak.testsuite.pages.PasswordPage;
 import org.keycloak.testsuite.pages.SelectAuthenticatorPage;
 import org.keycloak.testsuite.util.UserBuilder;
+import org.keycloak.testsuite.util.WaitUtils;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -139,12 +140,9 @@ public class KcOidcFirstBrokerLoginNewAuthTest extends AbstractInitializedBaseBr
         // Just click "Try another way" to verify that both Password and OTP are available. But go back to Password then
         passwordPage.clickTryAnotherWayLink();
         selectAuthenticatorPage.assertCurrent();
-        Assert.assertNames(selectAuthenticatorPage.getAvailableLoginMethods(), "Password", "OTP");
+        Assert.assertNames(selectAuthenticatorPage.getAvailableLoginMethods(), SelectAuthenticatorPage.PASSWORD, SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION);
 
-        // TODO: This is limitation of select, that it can't select the already present value. Should be improved when we change to select cart
-        selectAuthenticatorPage.selectLoginMethod("OTP");
-        loginTotpPage.clickTryAnotherWayLink();
-        selectAuthenticatorPage.selectLoginMethod("Password");
+        selectAuthenticatorPage.selectLoginMethod(SelectAuthenticatorPage.PASSWORD);
 
         // Login with password
         Assert.assertTrue(passwordPage.isCurrent("consumer"));
@@ -175,7 +173,7 @@ public class KcOidcFirstBrokerLoginNewAuthTest extends AbstractInitializedBaseBr
         // Click "Try another way", Select OTP and assert OTP form present
         passwordPage.clickTryAnotherWayLink();
         selectAuthenticatorPage.assertCurrent();
-        selectAuthenticatorPage.selectLoginMethod("OTP");
+        selectAuthenticatorPage.selectLoginMethod(SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION);
 
         loginTotpPage.assertCurrent();
 
@@ -225,7 +223,7 @@ public class KcOidcFirstBrokerLoginNewAuthTest extends AbstractInitializedBaseBr
 
 
     private void assertUserAuthenticatedInConsumer(String consumerRealmUserId) {
-        waitForPage(driver, "keycloak account management", true);
+        waitForAccountManagementTitle();
         accountUpdateProfilePage.assertCurrent();
         assertNumFederatedIdentities(consumerRealmUserId, 1);
     }

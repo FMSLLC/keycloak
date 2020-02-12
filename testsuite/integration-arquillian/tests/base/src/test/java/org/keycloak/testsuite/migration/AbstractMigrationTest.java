@@ -33,6 +33,7 @@ import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.common.constants.KerberosConstants;
 import org.keycloak.component.PrioritizedComponentModel;
 import org.keycloak.keys.KeyProvider;
+import org.keycloak.models.AccountRoles;
 import org.keycloak.models.AdminRoles;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.Constants;
@@ -40,6 +41,7 @@ import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.DefaultAuthenticationFlows;
 import org.keycloak.models.utils.TimeBasedOTP;
+import org.keycloak.protocol.oidc.OIDCConfigAttributes;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolFactory;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.idm.AuthenticationExecutionExportRepresentation;
@@ -278,6 +280,27 @@ public abstract class AbstractMigrationTest extends AbstractKeycloakTest {
         testAlwaysDisplayInConsole();
         testFirstBrokerLoginFlowMigrated(masterRealm);
         testFirstBrokerLoginFlowMigrated(migrationRealm);
+        testAccountClient(masterRealm);
+        testAccountClient(migrationRealm);
+        testAdminClientPkce(masterRealm);
+        testAdminClientPkce(migrationRealm);
+    }
+
+    private void testAccountClient(RealmResource realm) {
+        ClientRepresentation accountClient = realm.clients().findByClientId(ACCOUNT_MANAGEMENT_CLIENT_ID).get(0);
+
+        ClientResource accountResource = realm.clients().get(accountClient.getId());
+        RoleRepresentation viewAppRole = accountResource.roles().get(AccountRoles.VIEW_APPLICATIONS).toRepresentation();
+        assertNotNull(viewAppRole);
+        RoleRepresentation viewConsentRole = accountResource.roles().get(AccountRoles.VIEW_CONSENT).toRepresentation();
+        assertNotNull(viewConsentRole);
+        RoleResource manageConsentResource = accountResource.roles().get(AccountRoles.MANAGE_CONSENT);
+        RoleRepresentation manageConsentRole = manageConsentResource.toRepresentation();
+        assertNotNull(manageConsentRole);
+        assertTrue(manageConsentRole.isComposite());
+        Set<RoleRepresentation> composites = manageConsentResource.getRoleComposites();
+        assertEquals(1, composites.size());
+        assertEquals(viewConsentRole.getId(), composites.iterator().next().getId());
     }
 
     private void testAdminClientUrls(RealmResource realm) {
@@ -290,6 +313,11 @@ public abstract class AbstractMigrationTest extends AbstractKeycloakTest {
         assertEquals(1, adminConsoleClient.getRedirectUris().size());
         assertEquals("+", adminConsoleClient.getWebOrigins().iterator().next());
         assertEquals(1, adminConsoleClient.getWebOrigins().size());
+    }
+
+    private void testAdminClientPkce(RealmResource realm) {
+        ClientRepresentation adminConsoleClient = realm.clients().findByClientId(Constants.ADMIN_CONSOLE_CLIENT_ID).get(0);
+        assertEquals("S256", adminConsoleClient.getAttributes().get(OIDCConfigAttributes.PKCE_CODE_CHALLENGE_METHOD));
     }
 
     private void testAccountClientUrls(RealmResource realm) {
@@ -311,6 +339,7 @@ public abstract class AbstractMigrationTest extends AbstractKeycloakTest {
         assertFalse(accountConsoleClient.isFullScopeAllowed());
         assertTrue(accountConsoleClient.isStandardFlowEnabled());
         assertFalse(accountConsoleClient.isDirectAccessGrantsEnabled());
+        assertEquals("S256", accountConsoleClient.getAttributes().get(OIDCConfigAttributes.PKCE_CODE_CHALLENGE_METHOD));
 
         ClientResource clientResource = realm.clients().get(accountConsoleClient.getId());
 

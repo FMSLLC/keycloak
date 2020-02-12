@@ -18,6 +18,7 @@ package org.keycloak.broker.saml;
 
 import org.keycloak.models.IdentityProviderModel;
 
+import org.keycloak.protocol.saml.SamlPrincipalType;
 import org.keycloak.saml.common.util.XmlKeyInfoKeyNameTransformer;
 
 /**
@@ -40,6 +41,8 @@ public class SAMLIdentityProviderConfig extends IdentityProviderModel {
     public static final String SINGLE_LOGOUT_SERVICE_URL = "singleLogoutServiceUrl";
     public static final String SINGLE_SIGN_ON_SERVICE_URL = "singleSignOnServiceUrl";
     public static final String VALIDATE_SIGNATURE = "validateSignature";
+    public static final String PRINCIPAL_TYPE = "principalType";
+    public static final String PRINCIPAL_ATTRIBUTE = "principalAttribute";
     public static final String WANT_ASSERTIONS_ENCRYPTED = "wantAssertionsEncrypted";
     public static final String WANT_ASSERTIONS_SIGNED = "wantAssertionsSigned";
     public static final String WANT_AUTHN_REQUESTS_SIGNED = "wantAuthnRequestsSigned";
@@ -228,6 +231,49 @@ public class SAMLIdentityProviderConfig extends IdentityProviderModel {
           xmlSigKeyInfoKeyNameTransformer == null
             ? null
             : xmlSigKeyInfoKeyNameTransformer.name());
+    }
+
+    public int getAllowedClockSkew() {
+        int result = 0;
+        String allowedClockSkew = getConfig().get(ALLOWED_CLOCK_SKEW);
+        if (allowedClockSkew != null && !allowedClockSkew.isEmpty()) {
+            try {
+                result = Integer.parseInt(allowedClockSkew);
+                if (result < 0) {
+                    result = 0;
+                }
+            } catch (NumberFormatException e) {
+                // ignore it and use 0
+            }
+        }
+        return result;
+    }
+
+    public void setAllowedClockSkew(int allowedClockSkew) {
+        if (allowedClockSkew < 0) {
+            getConfig().remove(ALLOWED_CLOCK_SKEW);
+        } else {
+            getConfig().put(ALLOWED_CLOCK_SKEW, String.valueOf(allowedClockSkew));
+        }
+    }
+
+    public SamlPrincipalType getPrincipalType() {
+        return SamlPrincipalType.from(getConfig().get(PRINCIPAL_TYPE), SamlPrincipalType.SUBJECT);
+    }
+
+    public void setPrincipalType(SamlPrincipalType principalType) {
+        getConfig().put(PRINCIPAL_TYPE,
+            principalType == null
+                ? null
+                : principalType.name());
+    }
+
+    public String getPrincipalAttribute() {
+        return getConfig().get(PRINCIPAL_ATTRIBUTE);
+    }
+
+    public void setPrincipalAttribute(String principalAttribute) {
+        getConfig().put(PRINCIPAL_ATTRIBUTE, principalAttribute);
     }
 
 }

@@ -49,7 +49,6 @@ import org.keycloak.testsuite.pages.PasswordPage;
 import org.keycloak.testsuite.pages.SelectAuthenticatorPage;
 import org.keycloak.testsuite.util.FlowUtil;
 import org.keycloak.testsuite.util.OAuthClient;
-import org.keycloak.testsuite.util.WaitUtils;
 import org.openqa.selenium.WebDriver;
 
 import static org.keycloak.testsuite.admin.AbstractAdminTest.loadJson;
@@ -101,14 +100,6 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
         return res;
     }
 
-    private void importTestRealm(Consumer<RealmRepresentation> realmUpdater) {
-        RealmRepresentation realm = loadTestRealm();
-        if (realmUpdater != null) {
-            realmUpdater.accept(realm);
-        }
-        importRealm(realm);
-    }
-
     @Override
     public void addTestRealms(List<RealmRepresentation> testRealms) {
         log.debug("Adding test realm for import from testrealm.json");
@@ -138,10 +129,14 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
             passwordPage.clickTryAnotherWayLink();
 
             selectAuthenticatorPage.assertCurrent();
-            Assert.assertEquals(Arrays.asList("Password", "OTP"), selectAuthenticatorPage.getAvailableLoginMethods());
+            Assert.assertEquals(Arrays.asList(SelectAuthenticatorPage.PASSWORD, SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION), selectAuthenticatorPage.getAvailableLoginMethods());
+
+            // Assert help texts
+            Assert.assertEquals("Log in by entering your password.", selectAuthenticatorPage.getLoginMethodHelpText(SelectAuthenticatorPage.PASSWORD));
+            Assert.assertEquals("Enter a verification code from authenticator application.", selectAuthenticatorPage.getLoginMethodHelpText(SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION));
 
             // Select OTP and see that just single OTP is available for this user
-            selectAuthenticatorPage.selectLoginMethod("OTP");
+            selectAuthenticatorPage.selectLoginMethod(SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION);
             loginTotpPage.assertCurrent();
             loginTotpPage.assertTryAnotherWayLinkAvailability(true);
             loginTotpPage.assertOtpCredentialSelectorAvailability(false);
@@ -159,7 +154,7 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
             loginTotpPage.clickTryAnotherWayLink();
 
             selectAuthenticatorPage.assertCurrent();
-            Assert.assertEquals(Arrays.asList("OTP", "Password"), selectAuthenticatorPage.getAvailableLoginMethods());
+            Assert.assertEquals(Arrays.asList(SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION, SelectAuthenticatorPage.PASSWORD), selectAuthenticatorPage.getAvailableLoginMethods());
         } finally {
             BrowserFlowTest.revertFlows(testRealm(), "browser - alternative");
         }
@@ -218,8 +213,8 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
             // Click "Try another way" . Ability to have both password and OTP should be possible even if OTP is in different subflow
             passwordPage.clickTryAnotherWayLink();
             selectAuthenticatorPage.assertCurrent();
-            Assert.assertEquals(Arrays.asList("Password", "OTP"), selectAuthenticatorPage.getAvailableLoginMethods());
-            selectAuthenticatorPage.selectLoginMethod("OTP");
+            Assert.assertEquals(Arrays.asList(SelectAuthenticatorPage.PASSWORD, SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION), selectAuthenticatorPage.getAvailableLoginMethods());
+            selectAuthenticatorPage.selectLoginMethod(SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION);
 
             // Should be on the OTP now. Click "Try another way" again. Should see again both Password and OTP
             loginTotpPage.assertCurrent();
@@ -227,9 +222,9 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
 
             loginTotpPage.clickTryAnotherWayLink();
             selectAuthenticatorPage.assertCurrent();
-            Assert.assertEquals(Arrays.asList("Password", "OTP"), selectAuthenticatorPage.getAvailableLoginMethods());
+            Assert.assertEquals(Arrays.asList(SelectAuthenticatorPage.PASSWORD, SelectAuthenticatorPage.AUTHENTICATOR_APPLICATION), selectAuthenticatorPage.getAvailableLoginMethods());
 
-            selectAuthenticatorPage.selectLoginMethod("Password");
+            selectAuthenticatorPage.selectLoginMethod(SelectAuthenticatorPage.PASSWORD);
             passwordPage.assertCurrent();
             passwordPage.login("password");
 
@@ -285,6 +280,55 @@ public class MultiFactorAuthenticationTest extends AbstractTestRealmKeycloakTest
                     .detail(Details.USERNAME, "user-with-one-configured-otp").assertEvent();
         } finally {
             BrowserFlowTest.revertFlows(testRealm(),"browser - alternative mechanisms");
+        }
+    }
+
+
+    // In a sub-flow with alternative credential executors, check the username of the user is shown on the login screen.
+    // Also test the "reset login" link/icon .
+    @Test
+    public void testUsernameLabelAndResetLogin() {
+        try {
+            configureBrowserFlowWithAlternativeCredentials();
+
+            // The "attempted username" with username not yet available on the login screen
+            loginUsernameOnlyPage.open();
+            loginUsernameOnlyPage.assertAttemptedUsernameAvailability(false);
+
+            loginUsernameOnlyPage.login("user-with-one-configured-otp");
+
+            // On the password page, username should be shown as we know the user
+            passwordPage.assertCurrent();
+            passwordPage.assertAttemptedUsernameAvailability(true);
+            Assert.assertEquals("user-with-one-configured-otp", passwordPage.getAttemptedUsername());
+            passwordPage.clickTryAnotherWayLink();
+
+            // On the select-authenticator page, username should be shown as we know the user
+            selectAuthenticatorPage.assertCurrent();
+            selectAuthenticatorPage.assertAttemptedUsernameAvailability(true);
+            Assert.assertEquals("user-with-one-configured-otp", passwordPage.getAttemptedUsername());
+
+            // Reset login
+            selectAuthenticatorPage.clickResetLogin();
+
+            // Should be back on the login page
+            loginUsernameOnlyPage.assertCurrent();
+
+            // Use email as username. The email should be shown instead of username on the screens
+            loginUsernameOnlyPage.assertAttemptedUsernameAvailability(false);
+            loginUsernameOnlyPage.login("otp1@redhat.com");
+
+            // On the password page, the email of user should be shown
+            passwordPage.assertCurrent();
+            passwordPage.assertAttemptedUsernameAvailability(true);
+            Assert.assertEquals("otp1@redhat.com", passwordPage.getAttemptedUsername());
+
+            // Login
+            passwordPage.login("password");
+            events.expectLogin().user(testRealm().users().search("user-with-one-configured-otp").get(0).getId())
+                    .detail(Details.USERNAME, "otp1@redhat.com").assertEvent();
+        } finally {
+            BrowserFlowTest.revertFlows(testRealm(), "browser - alternative");
         }
     }
 
